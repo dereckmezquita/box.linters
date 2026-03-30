@@ -84,6 +84,18 @@ test_that("box_usage_linter resolves local module $function when linting from pa
   })
 })
 
+test_that("box_usage_linter blocks nonexistent module $function when linting from parent directory", {
+  linter <- box_usage_linter()
+  lint_message <- rex::rex("<package/module>$function does not exist.")
+
+  withr::with_options(list(box.path = NULL), {
+    test_file <- file.path(getwd(), "mod", "local_mod", "main_bad.R")
+    results <- lintr::lint(test_file, linters = list(linter))
+    expect_length(results, 1)
+    expect_match(results[[1]]$message, lint_message)
+  })
+})
+
 test_that("box_usage_linter blocks package functions exported by module", {
   linter <- box_usage_linter()
   lint_message_2 <- rex::rex("<package/module>$function does not exist.")
