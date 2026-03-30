@@ -4,6 +4,13 @@
 #' Checks method and attribute calls within an R6 class. Covers public, private, and active objects.
 #' All internal calls should exist. All private methods and attributes should be used.
 #'
+#' Supports R6 class inheritance via `inherit`. Inherited components from parent classes are
+#' recognized as valid calls in child classes. Resolution works for:
+#' * Same-file parent classes (including multi-level chains)
+#' * Cross-file parent classes imported via `box::use()` (alias and direct import patterns)
+#' * Cross-file chain inheritance (A -> B -> C across multiple files)
+#' * Parent classes from installed packages (via R6ClassGenerator introspection)
+#'
 #' For use in `rhino`, see the
 #' [Explanation: Rhino style guide](https://appsilon.github.io/rhino/articles/explanation/rhino-style-guide.html)
 #' to learn about the details.
@@ -343,7 +350,7 @@ resolve_r6_from_module_alias <- function(class_name, module_alias, full_xml, sou
   return(resolve_r6_from_module_file(class_name, module_path, source_file, visited))
 }
 
-#' Resolve R6 class from a function import (box::use(./path[ClassName]))
+#' Resolve R6 class from a function import (box::use(./path\[ClassName\]))
 #' @keywords internal
 resolve_r6_from_module_function_import <- function(class_name, full_xml, source_file,
                                                     visited = character()) {
@@ -403,7 +410,7 @@ resolve_r6_from_module_function_import <- function(class_name, full_xml, source_
   return(NULL)
 }
 
-#' Resolve R6 class from a package import (box::use(pkg[ClassName]))
+#' Resolve R6 class from a package import (box::use(pkg\[ClassName\]))
 #' @keywords internal
 resolve_r6_from_package_import <- function(class_name, full_xml) {
   # Find package imports that include class_name
