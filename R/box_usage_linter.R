@@ -53,8 +53,13 @@ box_usage_linter <- function() {
     attached_pkg_three_dots <- get_attached_pkg_three_dots(xml)
     all_attached_pkg_fun <- c(attached_pkg_functions$text, attached_pkg_three_dots$text)
 
-    attached_mod_functions <- get_attached_mod_functions(xml)
-    attached_mod_three_dots <- get_attached_mod_three_dots(xml)
+    working_dir <- get_module_working_dir(source_expression)
+
+    withr::with_dir(working_dir, {
+      attached_mod_functions <- get_attached_mod_functions(xml)
+      attached_mod_three_dots <- get_attached_mod_three_dots(xml)
+      attached_modules <- get_attached_modules(xml)
+    })
     all_attached_mod_fun <- c(attached_mod_three_dots$text, attached_mod_functions$text)
 
     fun_assignments <- get_declared_functions(xml)
@@ -69,7 +74,6 @@ box_usage_linter <- function() {
                        destructure_assignments$text)
 
     attached_packages <- get_attached_packages(xml)
-    attached_modules <- get_attached_modules(xml)
     all_attached_pkg_mod_aliases <- c(attached_packages$aliases, attached_modules$aliases)
     all_attached_box_mods <- c(attached_packages$text, attached_modules$text)
     all_attached_pkg_mod_fun_flat <- c(unlist(attached_packages$nested),

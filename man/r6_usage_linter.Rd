@@ -14,6 +14,15 @@ Checks method and attribute calls within an R6 class. Covers public, private, an
 All internal calls should exist. All private methods and attributes should be used.
 }
 \details{
+Supports R6 class inheritance via \code{inherit}. Inherited components from parent classes are
+recognized as valid calls in child classes. Resolution works for:
+\itemize{
+\item Same-file parent classes (including multi-level chains)
+\item Cross-file parent classes imported via \code{box::use()} (alias and direct import patterns)
+\item Cross-file chain inheritance (A -> B -> C across multiple files)
+\item Parent classes from installed packages (via R6ClassGenerator introspection)
+}
+
 For use in \code{rhino}, see the
 \href{https://appsilon.github.io/rhino/articles/explanation/rhino-style-guide.html}{Explanation: Rhino style guide}
 to learn about the details.

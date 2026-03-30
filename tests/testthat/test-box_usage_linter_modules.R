@@ -71,6 +71,31 @@ test_that("box_usage_linter skips allowed module[...] attachment", {
   lintr::expect_lint(good_box_usage_3, NULL, linter)
 })
 
+test_that("box_usage_linter resolves local module $function when linting from parent directory", {
+  linter <- box_usage_linter()
+
+  # Temporarily clear box.path so the linter uses the file's directory
+  # instead of the global box.path. This simulates lint_dir() from a
+  # parent directory where ./helper must resolve relative to the file.
+  withr::with_options(list(box.path = NULL), {
+    test_file <- file.path(getwd(), "mod", "local_mod", "main.R")
+    results <- lintr::lint(test_file, linters = list(linter))
+    expect_length(results, 0)
+  })
+})
+
+test_that("box_usage_linter blocks nonexistent module $function when linting from parent directory", {
+  linter <- box_usage_linter()
+  lint_message <- rex::rex("<package/module>$function does not exist.")
+
+  withr::with_options(list(box.path = NULL), {
+    test_file <- file.path(getwd(), "mod", "local_mod", "main_bad.R")
+    results <- lintr::lint(test_file, linters = list(linter))
+    expect_length(results, 1)
+    expect_match(results[[1]]$message, lint_message)
+  })
+})
+
 test_that("box_usage_linter blocks package functions exported by module", {
   linter <- box_usage_linter()
   lint_message_2 <- rex::rex("<package/module>$function does not exist.")
