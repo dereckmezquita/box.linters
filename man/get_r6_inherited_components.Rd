@@ -2,7 +2,7 @@
 % Please edit documentation in R/r6_usage_linter.R
 \name{get_r6_inherited_components}
 \alias{get_r6_inherited_components}
-\title{Get declared/defined R6 class components}
+\title{Get components inherited from parent R6 classes}
 \usage{
 get_r6_inherited_components(
   r6_class,
@@ -17,47 +17,13 @@ get_r6_inherited_components(
 \item{full_xml}{Full file XML to search for parent class definitions.}
 
 \item{visited}{Character vector of already-visited class names (cycle guard).}
-
-\item{xml}{XML representation of R source code.}
-
-\item{mode}{Type of internal component (\code{public}, \code{active}, \code{private}).}
 }
 \value{
-List of XML nodes and corresponding text string values of the nodes
-
 Character vector of inherited component names (e.g., "self$log", "private$ctx")
 }
 \description{
-Get declared/defined R6 class components
+Looks for \code{inherit = ParentClass} in the R6Class call, finds
+the parent class definition in the same file, and extracts its
+public, active, and private components. Recurses for grandparents.
 }
-\keyword{=}
-\keyword{Get}
-\keyword{Looks}
-\keyword{ParentClass`}
-\keyword{R6}
-\keyword{R6Class}
-\keyword{Recurses}
-\keyword{`inherit}
-\keyword{active,}
-\keyword{and}
-\keyword{call,}
-\keyword{class}
-\keyword{classes}
-\keyword{components}
-\keyword{components.}
-\keyword{definition}
-\keyword{extracts}
-\keyword{file,}
-\keyword{finds}
-\keyword{for}
-\keyword{from}
-\keyword{grandparents.}
-\keyword{in}
-\keyword{inherited}
 \keyword{internal}
-\keyword{its}
-\keyword{parent}
-\keyword{private}
-\keyword{public,}
-\keyword{same}
-\keyword{the}

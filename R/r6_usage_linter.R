@@ -191,12 +191,6 @@ make_r6_internal_calls_xpath <- function(mode = c("self", "private")) {
   ")
 }
 
-#' Get declared/defined R6 class components
-#'
-#' @param xml XML representation of R source code.
-#' @param mode Type of internal component (`public`, `active`, `private`).
-#' @return List of XML nodes and corresponding text string values of the nodes
-#' @keywords internal
 #' Get components inherited from parent R6 classes
 #'
 #' Looks for `inherit = ParentClass` in the R6Class call, finds
@@ -533,6 +527,12 @@ resolve_r6_from_package <- function(class_name, pkg_name) {
   })
 }
 
+#' Get declared/defined R6 class components
+#'
+#' @param xml XML representation of R source code.
+#' @param mode Type of internal component (`public`, `active`, `private`).
+#' @return List of XML nodes and corresponding text string values of the nodes
+#' @keywords internal
 get_r6_components <- function(xml, mode = c("public", "active", "private")) {
   xpath <- make_r6_components_xpath(mode)
   components <- xml2::xml_find_all(xml, xpath)
