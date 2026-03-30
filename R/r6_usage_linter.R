@@ -72,72 +72,80 @@
 # nolint end
 r6_usage_linter <- function() {
   lintr::Linter(function(source_expression) {
-    if (!lintr::is_lint_level(source_expression, "expression")) {
+    if (!lintr::is_lint_level(source_expression, "file")) {
       return(list())
     }
 
-    xml <- source_expression$xml_parsed_content
+    full_xml <- source_expression$full_xml_parsed_content
 
     xpath_r6_class <- "
     //expr[
       expr[1]/SYMBOL_FUNCTION_CALL[text() = 'R6Class']
     ]"
 
-    r6_class <- xml2::xml_find_all(xml, xpath_r6_class)
+    r6_classes <- xml2::xml_find_all(full_xml, xpath_r6_class)
 
-    if (length(r6_class) == 0) {
+    if (length(r6_classes) == 0) {
       return(list())
     }
 
-    public_components <- get_r6_components(r6_class, "public")
-    active_components <- get_r6_components(r6_class, "active")
-    private_components <- get_r6_components(r6_class, "private")
+    all_lints <- lapply(r6_classes, function(r6_class) {
+      public_components <- get_r6_components(r6_class, "public")
+      active_components <- get_r6_components(r6_class, "active")
+      private_components <- get_r6_components(r6_class, "private")
 
-    components_text <- c(public_components$text, active_components$text, private_components$text)
+      inherited_components <- get_r6_inherited_components(r6_class, full_xml)
 
-    xpath_self_calls <- make_r6_internal_calls_xpath("self")
-    xpath_private_calls <- make_r6_internal_calls_xpath("private")
-
-    self_method_calls <- extract_xml_and_text(r6_class, xpath_self_calls)
-    private_method_calls <- extract_xml_and_text(r6_class, xpath_private_calls)
-
-    all_internal_calls <- c(self_method_calls$xml, private_method_calls$xml)
-    all_internal_call_names <- c(self_method_calls$text, private_method_calls$text)
-
-    invalid_object <- lapply(all_internal_calls, function(internal_call) {
-      call_name <- lintr::get_r_string(internal_call)
-
-      if (!call_name %in% components_text) {
-        lintr::xml_nodes_to_lints(
-          internal_call,
-          source_expression = source_expression,
-          lint_message = "Internal object call not found.",
-          type = "warning"
-        )
-      }
-    })
-
-    unused_private <- lapply(private_components$xml, function(component) {
-      component_name <- paste(
-        "private",
-        lintr::get_r_string(component),
-        sep = "$"
+      components_text <- c(
+        public_components$text,
+        active_components$text,
+        private_components$text,
+        inherited_components
       )
 
-      if (!component_name %in% all_internal_call_names) {
-        lintr::xml_nodes_to_lints(
-          component,
-          source_expression = source_expression,
-          lint_message = "Private object not used.",
-          type = "warning"
+      xpath_self_calls <- make_r6_internal_calls_xpath("self")
+      xpath_private_calls <- make_r6_internal_calls_xpath("private")
+
+      self_method_calls <- extract_xml_and_text(r6_class, xpath_self_calls)
+      private_method_calls <- extract_xml_and_text(r6_class, xpath_private_calls)
+
+      all_internal_calls <- c(self_method_calls$xml, private_method_calls$xml)
+      all_internal_call_names <- c(self_method_calls$text, private_method_calls$text)
+
+      invalid_object <- lapply(all_internal_calls, function(internal_call) {
+        call_name <- lintr::get_r_string(internal_call)
+
+        if (!call_name %in% components_text) {
+          lintr::xml_nodes_to_lints(
+            internal_call,
+            source_expression = source_expression,
+            lint_message = "Internal object call not found.",
+            type = "warning"
+          )
+        }
+      })
+
+      unused_private <- lapply(private_components$xml, function(component) {
+        component_name <- paste(
+          "private",
+          lintr::get_r_string(component),
+          sep = "$"
         )
-      }
+
+        if (!component_name %in% all_internal_call_names) {
+          lintr::xml_nodes_to_lints(
+            component,
+            source_expression = source_expression,
+            lint_message = "Private object not used.",
+            type = "warning"
+          )
+        }
+      })
+
+      c(invalid_object, unused_private)
     })
 
-    c(
-      invalid_object,
-      unused_private
-    )
+    unlist(all_lints, recursive = FALSE)
   })
 }
 
@@ -148,7 +156,7 @@ r6_usage_linter <- function() {
 #' @keywords internal
 make_r6_components_xpath <- function(mode = c("public", "active", "private")) {
   glue::glue("
-    //SYMBOL_SUB[text() = '{mode}']
+    .//SYMBOL_SUB[text() = '{mode}']
     /following-sibling::EQ_SUB[1]
     /following-sibling::expr[1]
     /child::SYMBOL_SUB
@@ -162,7 +170,7 @@ make_r6_components_xpath <- function(mode = c("public", "active", "private")) {
 #' @keywords internal
 make_r6_internal_calls_xpath <- function(mode = c("self", "private")) {
   glue::glue("
-    //expr[
+    .//expr[
       ./expr/SYMBOL[text() = '{mode}'] and
       ./OP-DOLLAR and
       (
@@ -179,6 +187,60 @@ make_r6_internal_calls_xpath <- function(mode = c("self", "private")) {
 #' @param mode Type of internal component (`public`, `active`, `private`).
 #' @return List of XML nodes and corresponding text string values of the nodes
 #' @keywords internal
+#' Get components inherited from parent R6 classes
+#'
+#' Looks for `inherit = ParentClass` in the R6Class call, finds
+#' the parent class definition in the same file, and extracts its
+#' public, active, and private components. Recurses for grandparents.
+#'
+#' @param r6_class XML node of the R6Class call being checked.
+#' @param full_xml Full file XML to search for parent class definitions.
+#' @param visited Character vector of already-visited class names (cycle guard).
+#' @return Character vector of inherited component names (e.g., "self$log", "private$ctx")
+#' @keywords internal
+get_r6_inherited_components <- function(r6_class, full_xml, visited = character()) {
+  xpath_inherit <- ".//SYMBOL_SUB[text() = 'inherit']/following-sibling::EQ_SUB[1]/following-sibling::expr[1]/SYMBOL"
+  parent_nodes <- xml2::xml_find_all(r6_class, xpath_inherit)
+
+  if (length(parent_nodes) == 0) {
+    return(character())
+  }
+
+  parent_name <- xml2::xml_text(parent_nodes[[1]])
+
+  if (parent_name %in% visited) {
+    return(character())
+  }
+
+  xpath_parent_assign <- glue::glue(
+    "//expr[LEFT_ASSIGN and expr/SYMBOL[text() = '{parent_name}']]"
+  )
+  parent_assign <- xml2::xml_find_all(full_xml, xpath_parent_assign)
+
+  parent_class <- xml2::xml_find_all(
+    parent_assign,
+    ".//expr[expr/SYMBOL_FUNCTION_CALL[text() = 'R6Class']]"
+  )
+
+  if (length(parent_class) == 0) {
+    return(character())
+  }
+
+  parent_public <- get_r6_components(parent_class[[1]], "public")
+  parent_active <- get_r6_components(parent_class[[1]], "active")
+  parent_private <- get_r6_components(parent_class[[1]], "private")
+
+  parent_components <- c(parent_public$text, parent_active$text, parent_private$text)
+
+  grandparent_components <- get_r6_inherited_components(
+    parent_class[[1]],
+    full_xml,
+    visited = c(visited, parent_name)
+  )
+
+  return(c(parent_components, grandparent_components))
+}
+
 get_r6_components <- function(xml, mode = c("public", "active", "private")) {
   xpath <- make_r6_components_xpath(mode)
   components <- xml2::xml_find_all(xml, xpath)

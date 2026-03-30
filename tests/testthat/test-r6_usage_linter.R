@@ -554,3 +554,92 @@ test_that("r6_usage_linter blocks internal calls to invalid private objects", {
   lintr::expect_lint(bad_r6_class_1, list(message = lint_message), linter)
   lintr::expect_lint(bad_r6_class_2, list(message = lint_message), linter)
 })
+
+test_that("r6_usage_linter allows inherited methods from parent R6 class", {
+  linter <- r6_usage_linter()
+
+  good_r6_inherit <- "box::use(
+    R6[R6Class],
+  )
+
+  Parent <- R6Class('Parent',
+    public = list(
+      log_msg = function() { },
+      parent_attr = NULL
+    )
+  )
+
+  Child <- R6Class('Child',
+    inherit = Parent,
+    public = list(
+      run = function() {
+        self$log_msg()
+        self$parent_attr
+      }
+    )
+  )
+  "
+
+  lintr::expect_lint(good_r6_inherit, NULL, linter)
+})
+
+test_that("r6_usage_linter allows methods inherited from grandparent R6 class", {
+  linter <- r6_usage_linter()
+
+  good_r6_grandparent <- "box::use(
+    R6[R6Class],
+  )
+
+  GrandParent <- R6Class('GrandParent',
+    public = list(
+      ancient_method = function() { }
+    )
+  )
+
+  Parent <- R6Class('Parent',
+    inherit = GrandParent,
+    public = list(
+      log_msg = function() { }
+    )
+  )
+
+  Child <- R6Class('Child',
+    inherit = Parent,
+    public = list(
+      run = function() {
+        self$log_msg()
+        self$ancient_method()
+      }
+    )
+  )
+  "
+
+  lintr::expect_lint(good_r6_grandparent, NULL, linter)
+})
+
+test_that("r6_usage_linter blocks invalid calls in child class even with inheritance", {
+  linter <- r6_usage_linter()
+  lint_message <- rex::rex("Internal object call not found.")
+
+  bad_r6_inherit <- "box::use(
+    R6[R6Class],
+  )
+
+  Parent <- R6Class('Parent',
+    public = list(
+      log_msg = function() { }
+    )
+  )
+
+  Child <- R6Class('Child',
+    inherit = Parent,
+    public = list(
+      run = function() {
+        self$nonexistent()
+      }
+    )
+  )
+  "
+
+  lintr::expect_lint(bad_r6_inherit, list(message = lint_message), linter)
+})
