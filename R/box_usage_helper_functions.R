@@ -55,8 +55,11 @@ get_declared_functions <- function(xml) {
 #' @return A list of `xml_nodes` and `text`.
 #' @keywords internal
 get_declared_objects <- function(xml) {
+  # Note: data.table's `:=` operator is parsed as LEFT_ASSIGN in the XML tree.
+  # We exclude assignments inside `[` (OP-LEFT-BRACKET) to avoid false positives
+  # on data.table column assignments like `dt[, col := value]`.
   xpath_object_assignment <- "
-  //expr[LEFT_ASSIGN]/expr[1]/SYMBOL[1 and not(preceding-sibling::OP-DOLLAR)] |
+  //expr[LEFT_ASSIGN[not(text()=':=')]]/expr[1]/SYMBOL[1 and not(preceding-sibling::OP-DOLLAR)] |
   //equal_assign/expr[1]/SYMBOL[1] |
   //expr_or_assign_or_help/expr[1]/SYMBOL[1] |
   //expr[expr[1][SYMBOL_FUNCTION_CALL/text()='assign']]/expr[2]/* |

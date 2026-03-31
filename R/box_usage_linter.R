@@ -79,6 +79,12 @@ box_usage_linter <- function() {
     all_attached_pkg_mod_fun_flat <- c(unlist(attached_packages$nested),
                                        unlist(attached_modules$nested))
     base_pkgs <- get_base_packages()
+
+    # data.table special symbols: available inside dt[...] expressions via NSE.
+    # .N, .SD, .I, .GRP, .BY, .NGRP, .EACHI are data objects.
+    # .() is an alias for list(). :=() is the functional form of :=.
+    dt_globals <- c(".N", ".SD", ".I", ".GRP", ".BY", ".NGRP", ".EACHI", ".", ":=")
+
     function_calls <- get_function_calls(xml)
     special_calls <- get_special_calls(xml)
     function_special_calls <- c(function_calls$xml_nodes, special_calls$xml_nodes)
@@ -87,7 +93,9 @@ box_usage_linter <- function() {
       fun_call_text <- xml2::xml_text(fun_call)
       fun_call_text <- gsub("[`'\"]", "", fun_call_text)
 
-      if (!fun_call_text %in% base_pkgs$text) {
+      if (!fun_call_text %in% base_pkgs$text &&
+            !fun_call_text %in% dt_globals &&
+            !startsWith(fun_call_text, "..")) {
         if (grepl(".+\\$.+", fun_call_text)) {
           if (!fun_call_text %in% all_attached_box_mods) {
             split_call_names <- strsplit(fun_call_text, "\\$")[[1]]

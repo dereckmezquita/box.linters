@@ -2,6 +2,7 @@
 
 * `box_usage_linter()` now correctly resolves local module `$function` calls when linting from a parent directory (e.g., via `lint_dir()`). Previously, module exports could not be resolved because the working directory was not set to the linted file's directory before loading modules. (#150)
 * `r6_usage_linter()` now supports R6 class inheritance via `inherit`. Inherited public, private, and active components from parent classes are recognized as valid `self$` and `private$` calls in child classes. Supports same-file inheritance chains, cross-file inheritance via `box::use()` imports, and parent classes from installed packages. (#157)
+* `box_usage_linter()` and `unused_declared_object_linter()` now handle `data.table` non-standard evaluation. The `:=` operator no longer triggers false "unused object" lints, and special symbols (`.N`, `.SD`, `.I`, `.GRP`, `.BY`, `.NGRP`, `.EACHI`, `.()`, `..varname`) are no longer flagged as undefined. (#140)
 
 # box.linters 0.10.7
 

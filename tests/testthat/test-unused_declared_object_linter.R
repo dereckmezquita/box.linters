@@ -269,6 +269,22 @@ test_that("unused_declared_object_linter blocks unused destructure assignments",
   lintr::expect_lint(code, list(message = lint_message), linter)
 })
 
+test_that("unused_declared_object_linter ignores data.table walrus := assignments", {
+  linter <- unused_declared_object_linter()
+
+  code <- "
+#' @export
+run <- function() {
+  dt <- data.table::data.table(x = 1)
+  dt[, status := 'active']
+  dt[, `:=`(a = 1, b = 2)]
+  return(dt)
+}
+"
+
+  lintr::expect_lint(code, NULL, linter)
+})
+
 test_that("when none are @export'ed, all are @export'ed. Don't lint on unused objects.", {
   linter <- unused_declared_object_linter()
 

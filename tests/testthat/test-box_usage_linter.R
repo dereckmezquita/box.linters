@@ -271,3 +271,25 @@ test_that("box_usage_linter skips allowed destructure assignment objects", {
 
   lintr::expect_lint(code, NULL, linter)
 })
+
+test_that("box_usage_linter skips data.table special symbols", {
+  linter <- box_usage_linter()
+
+  code <- "box::use(
+    data.table,
+  )
+
+  #' @export
+  run <- function(dt) {
+    dt[, .(count = .N, total = sum(.SD[[1]])), by = group]
+    dt[, `:=`(a = 1, b = 2)]
+    col <- 'x'
+    dt[, ..col]
+    dt[.I < 5]
+    dt[, print(.GRP), by = group]
+    dt[, print(.BY), by = group]
+  }
+  "
+
+  lintr::expect_lint(code, NULL, linter)
+})
